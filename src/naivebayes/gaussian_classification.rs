@@ -11,15 +11,15 @@ pub struct GaussianClassification<T> {
 }
 
 impl<T> GaussianClassification<T> {
-    pub(crate) fn get_class_index<T>(&class: T) -> usize {
+    pub(crate) fn get_class_index(&self, class: &T) -> usize {
         0
     }
 }
 
-impl Classification<T> for GaussianClassification<T> {
-    pub(crate) fn feature_likelihood_given_class<T>(sample_feature: Num, &class: T) -> f64 {
+impl<T> Classification<T> for GaussianClassification<T> {
+    fn feature_likelihood_given_class<Num: ToPrimitive + Copy>(&self, sample_feature: Num, class: &T) -> f64 {
         let class_idx: usize = self.get_class_index(class);
-        let model_feature: GaussianFeature = self.features[class_idx];
+        let model_feature: &GaussianFeature = &self.features[class_idx];
 
         model_feature.pdf(sample_feature)
     }

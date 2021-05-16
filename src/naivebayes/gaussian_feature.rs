@@ -1,24 +1,32 @@
 extern crate num_traits;
 
 use crate::naivebayes::gaussian_classification::GaussianClassification;
-use crate::naivebayes::classification::{Classification, ClassLabel};
+use crate::naivebayes::feature::{Feature, ClassLabel};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
 
 pub struct GaussianFeature<T> {
     labels: Vec<T>,
+    sample_size: usize,
     classifications: Vec<GaussianClassification>
 }
 
 impl<T> GaussianFeature<T> {
-    
 }
 
-impl<T> Classification<T> for GaussianFeature<T> {
-    fn feature_likelihood_given_class<Num: ToPrimitive + Copy>
+impl<T> Feature<T> for GaussianFeature<T> {
+    fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
             (&self, sample_feature: Num, label: &ClassLabel) -> f64 {
-        let model_feature: &GaussianClassification = &self.classifications[label.get_index()];
+        let class: &GaussianClassification = 
+            &self.classifications[label.get_index()];
 
-        model_feature.pdf(sample_feature)
+        class.pdf(sample_feature)
+    }
+
+    fn get_class_likelihood(&self, label: &ClassLabel) -> f64 {
+        let class: &GaussianClassification = 
+            &self.classifications[label.get_index()];
+
+        class.get_sample_size() as f64 / self.sample_size as f64
     }
 }

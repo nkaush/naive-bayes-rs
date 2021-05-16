@@ -7,7 +7,9 @@ use std::vec::Vec;
 #[derive(Debug, Default)]
 pub struct GaussianClassification {
     mean: f64,
-    std: f64
+    std: f64,
+    sample_size: usize,
+    square_mean_diffs: f64
 }
 
 fn mean<Num: ToPrimitive + Copy>(features: &Vec<Num>) -> f64 {
@@ -46,15 +48,46 @@ impl GaussianClassification {
     pub(crate) fn new<Num: ToPrimitive + Copy>(features: Vec<Num>) -> GaussianClassification {
         GaussianClassification {
             mean: mean(&features),
-            std: std(&features)
+            std: std(&features),
+            sample_size: features.len(),
+            square_mean_diffs: 0.0
         }
     }
 
     pub(crate) fn create<Num: ToPrimitive + Copy>(mean: f64, std: f64) -> GaussianClassification {
         GaussianClassification {
             mean,
-            std
+            std,
+            sample_size: 0,
+            square_mean_diffs: 0.0
         }
+    }
+
+    pub(crate) fn get_sample_size(&self) -> usize {
+        self.sample_size
+    }
+
+    pub(crate) fn add_value_for_mean<Num: ToPrimitive + Copy>(mut self, value: Num) {
+        match value.to_f64() {
+            None => (),
+            Some(n) => {
+                self.sample_size += 1;
+                self.mean = self.mean + ((n - self.mean) / (self.sample_size) as f64);
+            }
+        };
+    }
+
+    pub(crate) fn add_value_for_std<Num: ToPrimitive + Copy>(mut self, value: Num) {
+        match value.to_f64() {
+            None => (),
+            Some(n) => {
+                self.square_mean_diffs += (n - self.mean).powf(2.0);
+            }
+        }
+    }
+
+    pub(crate) fn configure_std(mut self) {
+        self.std = (self.square_mean_diffs / (self.sample_size - 1) as f64).sqrt();
     }
 
     pub(crate) fn pdf<Num: ToPrimitive>(&self, x: Num) -> f64 {

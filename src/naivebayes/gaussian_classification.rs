@@ -61,11 +61,42 @@ impl GaussianClassification {
         match x.to_f64() {
             None => 0.0,
             Some(n) => {
-                let multiplier: f64 = 1.0 / (self.std.powf(2.0) * 2.0 * PI);
+                let multiplier: f64 = 1.0 / (self.std * (2.0 * PI).sqrt());
                 let exponent: f64 = -0.5 * ((n - self.mean) / self.std).powf(2.0);
 
                 multiplier * exponent.exp()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod gaussian_classification_tests {
+    use crate::naivebayes::gaussian_classification::GaussianClassification;
+
+    #[test]
+    fn test_standard_normal_distribution() {
+        let gc: GaussianClassification = GaussianClassification::create::<f64>(0.0, 1.0);
+        
+        assert_relative_eq!(gc.pdf(0.0), 0.39894228, max_relative=1.0);
+
+        assert_relative_eq!(gc.pdf(1.0), 0.24197072, max_relative=1.0);
+        assert_relative_eq!(gc.pdf(-1.0), 0.24197072, max_relative=1.0);
+
+        assert_relative_eq!(gc.pdf(1.5), 0.12951760, max_relative=1.0);
+        assert_relative_eq!(gc.pdf(-1.5), 0.12951760, max_relative=1.0);
+
+        assert_relative_eq!(gc.pdf(2.0), 0.05399097, max_relative=1.0);
+        assert_relative_eq!(gc.pdf(-2.0), 0.05399097, max_relative=1.0);
+
+        assert_relative_eq!(gc.pdf(2.5), 0.0175283, max_relative=1.0);
+        assert_relative_eq!(gc.pdf(-2.5), 0.0175283, max_relative=1.0);
+    }
+
+    fn test_arbitrary_normal_distribution() {
+        let gc: GaussianClassification = GaussianClassification::create::<f64>(0.0, 1.0);
+
+        assert_relative_eq!(gc.pdf(2.5), 0.0175283, max_relative=1.0);
+        assert_relative_eq!(gc.pdf(-2.5), 0.0175283, max_relative=1.0);
     }
 }

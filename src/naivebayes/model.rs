@@ -5,13 +5,13 @@ use crate::naivebayes::feature::{Feature, ClassLabel};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
 
-pub struct GaussianNaiveBayes<T> {
+pub struct GaussianNaiveBayes {
     label_mappings: Vec<ClassLabel>,
-    features: Vec<GaussianFeature<T>>
+    features: Vec<GaussianFeature>
 }
 
-impl<T> GaussianNaiveBayes<T> {
-    pub(crate) fn new() -> GaussianNaiveBayes<T> {
+impl GaussianNaiveBayes {
+    pub(crate) fn new() -> GaussianNaiveBayes {
         GaussianNaiveBayes {
             label_mappings: vec![],
             features: vec![]

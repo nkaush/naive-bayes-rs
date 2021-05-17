@@ -17,7 +17,7 @@ impl ClassLabel {
     }
 }
 
-pub trait Feature<T> {
+pub trait Feature {
     fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
         (&self, feature: Num, class: &ClassLabel) -> f64;
 

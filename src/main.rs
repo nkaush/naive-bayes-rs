@@ -2,7 +2,6 @@
 extern crate approx;
 
 mod naivebayes;
-mod test;
 
 fn main() {
     println!("Hello, world!");

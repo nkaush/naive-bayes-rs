@@ -5,16 +5,16 @@ use crate::naivebayes::feature::{Feature, ClassLabel};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
 
-pub struct GaussianFeature<T> {
-    labels: Vec<T>,
+pub struct GaussianFeature {
+    labels: Vec<ClassLabel>,
     sample_size: usize,
     classifications: Vec<GaussianClassification>
 }
 
-impl<T> GaussianFeature<T> {
+impl GaussianFeature {
 }
 
-impl<T> Feature<T> for GaussianFeature<T> {
+impl Feature for GaussianFeature {
     fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
             (&self, sample_feature: Num, label: &ClassLabel) -> f64 {
         let class: &GaussianClassification = 

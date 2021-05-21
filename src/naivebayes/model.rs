@@ -4,8 +4,9 @@ extern crate serde;
 extern crate csv;
 
 use std::{error::Error, vec::Vec, string::String, fs};
+use crate::ml::{model::Model, feature::Feature, label::Label};
 use crate::naivebayes::gaussian_feature::GaussianFeature;
-use crate::naivebayes::feature::{Feature, ClassLabel};
+use crate::naivebayes::class_label::ClassLabel;
 use self::serde::{Serialize, Deserialize};
 use std::io::{BufReader, BufRead};
 use self::num_traits::ToPrimitive;
@@ -22,50 +23,6 @@ pub struct GaussianNaiveBayes {
 }
 
 impl GaussianNaiveBayes {
-    pub(crate) fn from_json(file_path: &String) -> GaussianNaiveBayes {
-
-    }
-
-    pub(crate) fn to_json(&self, file_path: &String) {
-        print!("Saving model to {}...", file_path);
-        let data = serde_json::to_string(&self).unwrap();
-        fs::write(file_path, data).expect("Unable to write file");
-        println!("done.")
-    }
-
-    pub(crate) fn from_labels(file_path: &String) -> GaussianNaiveBayes {
-        let file = match fs::File::open(file_path) {
-            Ok(f) => f,
-            Err(_) => panic!("NOT FOUND")
-        };
-
-        print!("Reading labels...");
-
-        let mut labels: Vec<ClassLabel> = Vec::new();
-        let reader = BufReader::new(file);
-
-        for line_buffer in reader.lines() {
-            let components: Vec<String> = match line_buffer {
-                Ok(s) => s.split(" ").map(|s| s.to_string()).collect(),
-                Err(_) => panic!("Could not parse label.")
-            };
-
-            let label: ClassLabel = ClassLabel::new(
-                components[0].parse::<usize>().unwrap(),
-                components[1].parse::<u8>().unwrap()
-            );
-
-            labels.push(label);
-        }
-
-        println!("done.");
-
-        GaussianNaiveBayes {
-            labels: labels,
-            features: Vec::new()
-        }
-    }
-
     fn add_values_from_file<Num: ToPrimitive + Copy + FromStr>
             (&mut self, file_path: &String, 
              add_fn: &mut dyn FnMut(&mut GaussianFeature, &ClassLabel, Num))
@@ -106,8 +63,59 @@ impl GaussianNaiveBayes {
         }
         Ok(())
     }
+}
 
-    pub(crate) fn train<Num: ToPrimitive + Copy + FromStr>(
+impl Model for GaussianNaiveBayes {
+    fn from_json(file_path: &String) -> GaussianNaiveBayes {
+        print!("Loading model from {}...", file_path);
+        let data = fs::read_to_string(file_path).expect("Unable to read file");
+        let deserialized: GaussianNaiveBayes = serde_json::from_str(&data).unwrap();
+        println!("done.");
+
+        deserialized
+    }
+
+    fn to_json(&self, file_path: &String) {
+        print!("Saving model to {}...", file_path);
+        let data = serde_json::to_string(&self).unwrap();
+        fs::write(file_path, data).expect("Unable to write file");
+        println!("done.")
+    }
+
+    fn from_labels(file_path: &String) -> GaussianNaiveBayes {
+        let file = match fs::File::open(file_path) {
+            Ok(f) => f,
+            Err(_) => panic!("NOT FOUND")
+        };
+
+        print!("Reading labels...");
+
+        let mut labels: Vec<ClassLabel> = Vec::new();
+        let reader = BufReader::new(file);
+
+        for line_buffer in reader.lines() {
+            let components: Vec<String> = match line_buffer {
+                Ok(s) => s.split(" ").map(|s| s.to_string()).collect(),
+                Err(_) => panic!("Could not parse label.")
+            };
+
+            let label: ClassLabel = ClassLabel::new(
+                components[0].parse::<usize>().unwrap(),
+                components[1].parse::<u8>().unwrap()
+            );
+
+            labels.push(label);
+        }
+
+        println!("done.");
+
+        GaussianNaiveBayes {
+            labels: labels,
+            features: Vec::new()
+        }
+    }
+
+    fn train<Num: ToPrimitive + Copy + FromStr>(
             &mut self, file_path: &String) -> Result<(), Box<dyn Error>> {
         println!("Adding distribution means.");
         self.add_values_from_file::<Num>(&file_path, &mut GaussianFeature::add_value_for_mean)?;
@@ -122,7 +130,7 @@ impl GaussianNaiveBayes {
         Ok(())
     }
 
-    pub(crate) fn test<Num: ToPrimitive + Copy + FromStr>
+    fn test<Num: ToPrimitive + Copy + FromStr>
             (&self, file_path: &String) -> Result<f64, Box<dyn Error>> {
         println!("Testing model.");
         let mut rdr = csv::Reader::from_path(file_path)?;
@@ -151,12 +159,10 @@ impl GaussianNaiveBayes {
                 }
             }).collect::<Vec<Num>>();
 
-            let predicted_label: ClassLabel = match self.classify::<Num>(&features) {
-                Ok(label) => label,
-                Err(_) => panic!("Could not classify record.")
-            };
+            let predicted_label: Box<dyn Label> = self.classify::<Num>(&features);
+            let predicted_index: usize = predicted_label.get_index();
 
-            confusion_matrix[[actual_label.get_index(), predicted_label.get_index()]] += 1;
+            confusion_matrix[[actual_label.get_index(), predicted_index]] += 1;
         }
 
         println!("Confusion Matrix:");
@@ -165,8 +171,8 @@ impl GaussianNaiveBayes {
         Ok(confusion_matrix.diag().sum() as f64 / confusion_matrix.sum() as f64)
     }
 
-    pub(crate) fn classify<Num: ToPrimitive + Copy>
-            (&self, sample_features: &Vec<Num>) -> Result<ClassLabel, ()> {
+    fn classify<Num: ToPrimitive + Copy>
+            (&self, sample_features: &Vec<Num>) -> Box<dyn Label> {
         let mut max_likelihood: f64 = 0.0;
         let mut best_label: Option<&ClassLabel> = None;
 
@@ -175,23 +181,23 @@ impl GaussianNaiveBayes {
                                             .iter().enumerate()
                                             .fold(0.0, |total, (idx, feat)| {
                 let prob: f64 = feat.get_feature_likelihood_given_class(
-                    sample_features[idx], &current_class);
+                    sample_features[idx], current_class);
                 total + prob.log10()
             });
 
             let class_likelihood: f64 = 
-                self.features[0].get_class_likelihood(&current_class).log10();
+                self.features[0].get_class_likelihood(current_class).log10();
             let likelihood: f64 = feature_likelihoods + class_likelihood;
 
             best_label = match best_label {
                 None => {
                     max_likelihood = likelihood;
-                    Some(&current_class)
+                    Some(current_class)
                 },
                 Some(previous_label) => {
                     if likelihood > max_likelihood {
                         max_likelihood = likelihood;
-                        Some(&current_class)
+                        Some(current_class)
                     } else {
                         Some(previous_label)
                     }
@@ -200,8 +206,8 @@ impl GaussianNaiveBayes {
         }
         
         match best_label {
-            None => Err(()),
-            Some(label) => Ok(*label)
+            None => panic!("Could not classify record."),
+            Some(label) => Box::new(*label)
         }
     }
 }

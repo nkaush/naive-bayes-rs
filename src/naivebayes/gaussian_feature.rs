@@ -2,7 +2,9 @@ extern crate num_traits;
 extern crate serde;
 
 use crate::naivebayes::gaussian_classification::GaussianClassification;
-use crate::naivebayes::feature::{Feature, ClassLabel};
+use crate::ml::{feature::Feature, label::Label};
+use crate::naivebayes::class_label::ClassLabel;
+
 use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
@@ -23,7 +25,7 @@ impl GaussianFeature {
         } 
     }
 
-    fn get_class(&self, label: &ClassLabel) -> &GaussianClassification {
+    fn get_class(&self, label: &dyn Label) -> &GaussianClassification {
         &self.classifications[label.get_index()]
     }
 
@@ -51,11 +53,11 @@ impl GaussianFeature {
 
 impl Feature for GaussianFeature {
     fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
-            (&self, sample_feature: Num, label: &ClassLabel) -> f64 {
+            (&self, sample_feature: Num, label: &dyn Label) -> f64 {
         self.get_class(label).pdf(sample_feature)
     }
 
-    fn get_class_likelihood(&self, label: &ClassLabel) -> f64 {
+    fn get_class_likelihood(&self, label: &dyn Label) -> f64 {
         self.get_class(label).get_sample_size() as f64 / self.sample_size as f64
     }
 }

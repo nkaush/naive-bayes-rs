@@ -1,12 +1,14 @@
 extern crate num_traits;
+extern crate serde;
 
+use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
 use std::f64::consts::PI;
 use std::vec::Vec;
 
 static MIN_STD: f64 = 1e-10;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GaussianClassification {
     mean: f64,
     std: f64,

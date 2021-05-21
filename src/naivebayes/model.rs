@@ -1,10 +1,12 @@
 extern crate num_traits;
 extern crate ndarray;
+extern crate serde;
 extern crate csv;
 
-use std::{error::Error, vec::Vec, string::String, fs::File};
+use std::{error::Error, vec::Vec, string::String, fs};
 use crate::naivebayes::gaussian_feature::GaussianFeature;
 use crate::naivebayes::feature::{Feature, ClassLabel};
+use self::serde::{Serialize, Deserialize};
 use std::io::{BufReader, BufRead};
 use self::num_traits::ToPrimitive;
 use self::ndarray::prelude::*;
@@ -13,14 +15,26 @@ use core::str::FromStr;
 
 static PRINT_INTERVAL: usize = 5000;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GaussianNaiveBayes {
     labels: Vec<ClassLabel>,
     features: Vec<GaussianFeature>
 }
 
 impl GaussianNaiveBayes {
+    pub(crate) fn from_json(file_path: &String) -> GaussianNaiveBayes {
+
+    }
+
+    pub(crate) fn to_json(&self, file_path: &String) {
+        print!("Saving model to {}...", file_path);
+        let data = serde_json::to_string(&self).unwrap();
+        fs::write(file_path, data).expect("Unable to write file");
+        println!("done.")
+    }
+
     pub(crate) fn from_labels(file_path: &String) -> GaussianNaiveBayes {
-        let file = match File::open(file_path) {
+        let file = match fs::File::open(file_path) {
             Ok(f) => f,
             Err(_) => panic!("NOT FOUND")
         };

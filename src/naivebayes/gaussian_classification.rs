@@ -16,6 +16,7 @@ pub struct GaussianClassification {
     square_mean_diffs: f64
 }
 
+#[allow(dead_code)]
 fn mean<Num: ToPrimitive + Copy>(features: &Vec<Num>) -> f64 {
     features.iter().enumerate().fold(0.0, |avg, (i, &x)|
         {
@@ -28,6 +29,7 @@ fn mean<Num: ToPrimitive + Copy>(features: &Vec<Num>) -> f64 {
         })
 }
 
+#[allow(dead_code)]
 fn std<Num: ToPrimitive + Copy>(features: &Vec<Num>) -> f64 {
     let mut sample_size: usize = features.len();
     let mean: f64 = mean(features);
@@ -53,6 +55,15 @@ impl GaussianClassification {
         GaussianClassification {
             mean: 0.0,
             std: 0.0,
+            sample_size: 0,
+            square_mean_diffs: 0.0
+        }
+    }
+
+    pub(crate) fn create<Num: ToPrimitive + Copy>(mean: f64, std: f64) -> GaussianClassification {
+        GaussianClassification {
+            mean,
+            std,
             sample_size: 0,
             square_mean_diffs: 0.0
         }
@@ -104,6 +115,7 @@ impl GaussianClassification {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod gaussian_classification_tests {
     use crate::naivebayes::gaussian_classification::GaussianClassification;
 
@@ -126,6 +138,7 @@ mod gaussian_classification_tests {
         assert_relative_eq!(gc.pdf(-2.5), 0.0175283, max_relative=1.0);
     }
 
+    #[test]
     fn test_arbitrary_normal_distribution() {
         let gc: GaussianClassification = GaussianClassification::create::<f64>(0.0, 1.0);
 

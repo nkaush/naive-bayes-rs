@@ -1,12 +1,18 @@
+#[macro_use]
+extern crate approx;
+extern crate csv;
+
 mod naivebayes;
-mod test;
+
+use naivebayes::model::GaussianNaiveBayes;
+use std::string::String;
 
 fn main() {
-    println!("Hello, world!");
+    let label_path: String = String::from("./data/emnist-balanced-mapping.txt");
+    let train_path: String = String::from("./data/emnist-balanced-train.csv");
+    let test_path: String = String::from("./data/emnist-balanced-test.csv");
 
-    let x: Vec<i32> = vec![1, 2, 3];
+    let mut model: &mut GaussianNaiveBayes = &mut GaussianNaiveBayes::from_labels(&label_path);
 
-    let s: i32 = x.iter().sum();
-    println!("{}", s);
-
+    model.train::<u8>(&train_path);
 }

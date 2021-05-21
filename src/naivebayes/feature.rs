@@ -1,7 +1,10 @@
 extern crate num_traits;
+extern crate serde;
 
+use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ClassLabel {
     index: usize,
     ascii: u8

@@ -1,10 +1,13 @@
 extern crate num_traits;
+extern crate serde;
 
 use crate::naivebayes::gaussian_classification::GaussianClassification;
 use crate::naivebayes::feature::{Feature, ClassLabel};
+use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GaussianFeature {
     sample_size: usize,
     classifications: Vec<GaussianClassification>

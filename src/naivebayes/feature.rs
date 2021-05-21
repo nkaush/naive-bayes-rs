@@ -8,6 +8,13 @@ pub struct ClassLabel {
 }
 
 impl ClassLabel {
+    pub(crate) fn new(index: usize, ascii: u8) -> ClassLabel {
+        ClassLabel {
+            index,
+            ascii
+        }
+    }
+
     pub(crate) fn get_index(&self) -> usize {
         self.index
     }

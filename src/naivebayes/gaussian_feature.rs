@@ -9,14 +9,15 @@ use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
 use std::vec::Vec;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GaussianFeature {
     sample_size: usize,
     classifications: Vec<GaussianClassification>
 }
 
 impl GaussianFeature {
-    pub(crate) fn merge(a: &GaussianFeature, b: &GaussianFeature) -> GaussianFeature {
+    pub(crate) fn merge(a: &GaussianFeature, b: &GaussianFeature) 
+            -> GaussianFeature {
         let (av, bv) = (&a.classifications, &b.classifications);
 
         GaussianFeature {

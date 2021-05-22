@@ -16,27 +16,22 @@ fn run_app() -> Result<(), String> {
 
     // TODO verbosity, confusion
 
-    let labels_path: Option<String> = match arg_matches.value_of("labels") {
-        Some(label_path) => Some(String::from(label_path)),
-        None => None
-    };
-
-    let model_json_path: Option<String> = match arg_matches.value_of("load") {
-        Some(model_path) => Some(String::from(model_path)),
-        None => None
-    };
-
-    let model: Box<GaussianNaiveBayes> = match (labels_path, model_json_path) {
+    let model: Box<GaussianNaiveBayes> = 
+            match (arg_matches.value_of("labels"), arg_matches.value_of("load")) {
         (None, None) => return Err(String::from("No model loading method provided.")),
         (Some(_), Some(_)) => return Err(String::from("Redundant model loading methods provided. Choose only one!")),
         (Some(path), None) => {
-            // Train model here since label path was provided
-            let mut untrained: GaussianNaiveBayes = GaussianNaiveBayes::from_labels(&path);
-            match arg_matches.value_of("train") {
-                Some(train_path) => {
-                    let path: String = String::from(train_path);
+            let label_path: String = String::from(path);
 
-                    match untrained.train::<u8>(&path) {
+            // Train model here since label path was provided
+            let mut untrained: GaussianNaiveBayes = 
+                GaussianNaiveBayes::from_labels(&label_path);
+
+            match arg_matches.value_of("train") {
+                Some(tp) => {
+                    let train_path: String = String::from(tp);
+
+                    match untrained.train::<u8>(&train_path) {
                         Ok(_) => println!("Model trained."),
                         Err(_) => return Err(String::from("Model training failed"))
                     };
@@ -45,34 +40,29 @@ fn run_app() -> Result<(), String> {
             }
             Box::new(untrained)
         },
-        (None, Some(path)) => Box::new(GaussianNaiveBayes::from_json(&path))
+        (None, Some(path)) => {
+            let model_path: String = String::from(path);
+            Box::new(GaussianNaiveBayes::from_json(&model_path))
+        }
     };
 
-    match arg_matches.value_of("save") {
-        Some(save_path) => {
-            let path: String = String::from(save_path);
-            model.to_json(&path);
-        }
-        None => ()
-    }; 
+    if let Some(save_path) = arg_matches.value_of("save") {
+        model.to_json(&String::from(save_path));
+    }
 
-    match arg_matches.value_of("test") {
-        Some(test_path) => {
-            let path: String = String::from(test_path);
-            match model.test::<u8>(&path) {
-                Ok(accuracy) => println!("Model accuracy: {}", accuracy),
-                Err(_) => return Err(String::from("Model testing failed"))
-            };
-        }
-        None => ()
-    }; 
+    if let Some(test_path) = arg_matches.value_of("test") {
+        let path: String = String::from(test_path);
+        match model.test::<u8>(&path) {
+            Ok(accuracy) => println!("Model accuracy: {}", accuracy),
+            Err(_) => return Err(String::from("Model testing failed"))
+        };
+    }
 
     Ok(())
 }
 
 fn main() {
-    match run_app() {
-        Ok(_) => (),
-        Err(error_message) => println!("{}", error_message)
-    };
+    if let Err(error_message) = run_app() {
+        println!("{}", error_message);
+    }
 }

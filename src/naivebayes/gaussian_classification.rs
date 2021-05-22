@@ -8,7 +8,7 @@ use std::vec::Vec;
 
 static MIN_STD: f64 = 1e-10;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct GaussianClassification {
     mean: f64,
     std: f64,

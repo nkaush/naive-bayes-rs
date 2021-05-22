@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 #[macro_use]
 extern crate approx;
 extern crate csv;

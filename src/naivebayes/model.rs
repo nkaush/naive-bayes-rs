@@ -3,14 +3,17 @@ extern crate ndarray;
 extern crate serde;
 extern crate csv;
 
-use std::{error::Error, vec::Vec, string::String, fs, io::{BufReader, BufRead}};
+use std::{error::Error, vec::Vec, string::String};
+use std::{fs, io::{BufReader, BufRead}};
+use std::{sync::{Arc, Mutex}, thread};
+
 use crate::ml::{model::Model, feature::Feature, label::Label};
 use crate::naivebayes::gaussian_feature::GaussianFeature;
 use crate::naivebayes::class_label::ClassLabel;
+
 use self::serde::{Serialize, Deserialize};
+use self::ndarray::{prelude::*, Array};
 use self::num_traits::ToPrimitive;
-use self::ndarray::prelude::*;
-use self::ndarray::Array;
 use core::str::FromStr;
 
 static PRINT_INTERVAL: usize = 5000;
@@ -29,19 +32,27 @@ impl GaussianNaiveBayes {
         // Build the CSV reader and iterate over each record.
         let mut rdr = csv::Reader::from_path(file_path)?;
 
-        for (idx, result) in rdr.records().enumerate() {
+        // Consume the 1st entry to set the sizes of the model
+        let record = match rdr.records().nth(0) {
+            Some(Ok(r)) => r,
+            _ => panic!("Could not parse CSV file.")
+        };
+
+        let num_features = record.len() - 1; // subtract 1 for the row index
+        self.features = (0..num_features)
+            .map(|_| GaussianFeature::new(self.labels.len()))
+            .collect::<Vec<GaussianFeature>>();
+
+        // let x: csv::StringRecordsIter<fs::File> = rdr.records();
+
+        // Skip the 1st entry since it was handles above
+        for (idx, result) in rdr.records().skip(1).enumerate() {
             // The iterator yields Result<StringRecord, Error>, so we check the error here.
             let record = result?;
 
+            // Print the training status on the specified interval
             if idx % PRINT_INTERVAL == 0 {
                 println!("Iteration {}", idx);
-            }
-
-            if self.features.is_empty() {
-                let num_features = record.len() - 1; // subtract 1 for the row index
-                self.features = (0..num_features)
-                    .map(|_| GaussianFeature::new(self.labels.len()))
-                    .collect::<Vec<GaussianFeature>>();
             }
 
             // Get the row label from the csv file
@@ -60,6 +71,7 @@ impl GaussianNaiveBayes {
                 add_fn(feature, label, value);
             }
         }
+
         Ok(())
     }
 }
@@ -188,20 +200,10 @@ impl Model for GaussianNaiveBayes {
                 self.features[0].get_class_likelihood(current_class).log10();
             let likelihood: f64 = feature_likelihoods + class_likelihood;
 
-            best_label = match best_label {
-                None => {
-                    max_likelihood = likelihood;
-                    Some(current_class)
-                },
-                Some(previous_label) => {
-                    if likelihood > max_likelihood {
-                        max_likelihood = likelihood;
-                        Some(current_class)
-                    } else {
-                        Some(previous_label)
-                    }
-                }
-            };
+            if best_label.is_none() || likelihood > max_likelihood {
+                max_likelihood = likelihood;
+                best_label = Some(current_class);
+            }
         }
         
         match best_label {

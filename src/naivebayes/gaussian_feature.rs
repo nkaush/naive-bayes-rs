@@ -16,6 +16,17 @@ pub struct GaussianFeature {
 }
 
 impl GaussianFeature {
+    pub(crate) fn merge(a: &GaussianFeature, b: &GaussianFeature) -> GaussianFeature {
+        let (av, bv) = (&a.classifications, &b.classifications);
+
+        GaussianFeature {
+            sample_size: a.sample_size + b.sample_size,
+            classifications: (0..a.classifications.len())
+                .map(|idx| GaussianClassification::merge(&av[idx], &bv[idx]))
+                .collect::<Vec<GaussianClassification>>()
+        } 
+    }
+
     pub(crate) fn new(count: usize) -> GaussianFeature {
         GaussianFeature {
             sample_size: 0,

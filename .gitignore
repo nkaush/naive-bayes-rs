@@ -1,5 +1,5 @@
 /target
 /.idea/
-/models/
 /data/
 Cargo.lock
+mnist-classifier

@@ -60,6 +60,7 @@ impl GaussianClassification {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn create<Num: ToPrimitive + Copy>(mean: f64, std: f64) -> GaussianClassification {
         GaussianClassification {
             mean,

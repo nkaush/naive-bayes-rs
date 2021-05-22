@@ -17,6 +17,7 @@ impl ClassLabel {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_ascii(&self) -> u8 {
         self.ascii
     }

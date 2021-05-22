@@ -3,12 +3,11 @@ extern crate ndarray;
 extern crate serde;
 extern crate csv;
 
-use std::{error::Error, vec::Vec, string::String, fs};
+use std::{error::Error, vec::Vec, string::String, fs, io::{BufReader, BufRead}};
 use crate::ml::{model::Model, feature::Feature, label::Label};
 use crate::naivebayes::gaussian_feature::GaussianFeature;
 use crate::naivebayes::class_label::ClassLabel;
 use self::serde::{Serialize, Deserialize};
-use std::io::{BufReader, BufRead};
 use self::num_traits::ToPrimitive;
 use self::ndarray::prelude::*;
 use self::ndarray::Array;

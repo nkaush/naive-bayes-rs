@@ -4,10 +4,10 @@ author: Neil Kaushikkar <neil.kaushikkar@gmail.com>
 about: Does awesome things
 args:
     - test:
-        long: config
+        long: test
         takes_value: true
         required: false
-        about: Sets a custom config file
+        about: Sets the testing data input file to use
     - train:
         long: train
         takes_value: true

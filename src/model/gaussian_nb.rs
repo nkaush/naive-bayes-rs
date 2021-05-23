@@ -66,8 +66,7 @@ impl GaussianNaiveBayes {
                 .collect::<Vec<GaussianFeature>>();
         }
         
-        // Skip the 1st entry since it was handles above
-        for (sample_idx, result) in rdr.records().skip(1).enumerate() {
+        for (sample_idx, result) in rdr.records().enumerate() {
             // Print the training status on the specified interval
             if sample_idx % PRINT_INTERVAL == 0 {
                 println!("Iteration {}", sample_idx);
@@ -302,7 +301,7 @@ impl Model for GaussianNaiveBayes {
         self.add_values_from_file::<Num>(&file_path, 1)?;
 
         for feature in self.features.iter_mut() {
-            feature.configure_std();
+            feature.prepare();
         }
 
         Ok(())

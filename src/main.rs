@@ -3,9 +3,10 @@ extern crate approx;
 extern crate csv;
 
 mod naivebayes;
+mod model;
 mod ml;
 
-use naivebayes::model::GaussianNaiveBayes;
+use model::gaussian_nb::GaussianNaiveBayes;
 use clap::{App, load_yaml};
 use std::string::String;
 use ml::model::Model;

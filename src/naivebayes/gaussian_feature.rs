@@ -56,7 +56,7 @@ impl GaussianFeature {
         let class: &mut GaussianClassification = 
             &mut self.classifications[label.get_index()];
         class.add_value_for_std(value);
-    } */
+    } 
 
     pub(crate) fn configure_std(&mut self) {
         for class in self.classifications.iter_mut() {
@@ -64,7 +64,7 @@ impl GaussianFeature {
         }
 
         self.is_trained = true;
-    }
+    } */
 }
 
 impl Feature for GaussianFeature {
@@ -85,6 +85,14 @@ impl Feature for GaussianFeature {
             },
             _ => {}
         }
+    }
+
+    fn prepare(&mut self) {
+        for class in self.classifications.iter_mut() {
+            class.configure_std();
+        }
+
+        self.is_trained = true;
     }
 
     fn is_trained(&self) -> bool {

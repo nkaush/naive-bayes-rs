@@ -2,9 +2,9 @@ extern crate num_traits;
 extern crate ndarray;
 
 use std::{vec::Vec, string::String, error::Error};
+use crate::ml::{label::Label, error::ModelError};
 use self::ndarray::{prelude::*, Array};
 use self::num_traits::ToPrimitive;
-use crate::ml::label::Label;
 use core::str::FromStr;
 
 pub trait Model {    
@@ -22,7 +22,7 @@ pub trait Model {
         -> Result<f64, Box<dyn Error>>;
 
     fn classify<Num: ToPrimitive + Copy>(&self, sample_features: &Vec<Num>) 
-        -> Box<dyn Label>;
+        -> Result<Box<dyn Label>, ModelError>;
 
     fn calculate_accuracy(confusion_matrix: &Array<usize, Ix2>) -> f64 {
         confusion_matrix.diag().sum() as f64 / confusion_matrix.sum() as f64

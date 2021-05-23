@@ -1,11 +1,16 @@
 extern crate num_traits;
 
+use crate::ml::{label::Label, error::ModelError};
 use self::num_traits::ToPrimitive;
-use crate::ml::label::Label;
 
 pub trait Feature {
-    fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
-        (&self, feature: Num, class: &dyn Label) -> f64;
+    fn train_iter<Num: ToPrimitive + Copy>
+        (&mut self, label: &dyn Label, value: Num, iter: usize);
 
-    fn get_class_likelihood(&self, class: &dyn Label) -> f64;
+    fn is_trained(&self) -> bool;
+
+    fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
+        (&self, feature: Num, class: &dyn Label) -> Result<f64, ModelError>;
+
+    fn get_class_likelihood(&self, class: &dyn Label) -> Result<f64, ModelError>;
 }

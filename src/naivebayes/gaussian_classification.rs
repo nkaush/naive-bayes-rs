@@ -91,19 +91,21 @@ impl GaussianClassification {
 
     pub(crate) fn add_value_for_mean<Num: ToPrimitive + Copy>(&mut self, value: Num) {
         match value.to_f64() {
-            None => (),
+            None => {
+                println!("Could not parse feature");
+            },
             Some(n) => {
                 self.sample_size += 1;
                 self.mean = self.mean + ((n - self.mean) / (self.sample_size) as f64);
             }
         };
-
-        self.sample_size += 1;
     }
 
     pub(crate) fn add_value_for_std<Num: ToPrimitive + Copy>(&mut self, value: Num) {
         match value.to_f64() {
-            None => (),
+            None => {
+                println!("Could not parse feature");
+            },
             Some(n) => {
                 self.square_mean_diffs += (n - self.mean).powf(2.0);
             }

@@ -7,7 +7,7 @@ use std::sync::{Arc, mpsc, mpsc::{Sender, Receiver}};
 use std::{error::Error, vec::Vec, string::String};
 use std::{io::{BufReader, BufRead}, fs, thread};
 
-use crate::ml::{model::Model, feature::Feature, label::Label};
+use crate::ml::{model::Model, feature::Feature, label::Label, error::ModelError};
 use crate::naivebayes::gaussian_feature::GaussianFeature;
 use crate::naivebayes::class_label::ClassLabel;
 
@@ -50,8 +50,7 @@ impl GaussianNaiveBayes {
     }
 
     fn add_values_from_file<Num: ToPrimitive + Copy + FromStr>
-            (&mut self, file_path: &String, 
-                add_fn: &mut dyn FnMut(&mut GaussianFeature, &ClassLabel, Num))
+            (&mut self, file_path: &String, train_iteration: usize)
             -> Result<(), Box<dyn Error>> {
         // Build the CSV reader and iterate over each record.
         let mut rdr = csv::Reader::from_path(file_path)?;
@@ -60,25 +59,26 @@ impl GaussianNaiveBayes {
         let record = rdr.records().nth(0).expect("Could not parse CSV record.")?;
 
         // subtract 1 to skip over the row index label 
-        let num_features = record.len() - 1; 
-        self.features = (0..num_features)
-            .map(|_| GaussianFeature::new(self.labels.len()))
-            .collect::<Vec<GaussianFeature>>();
-
+        if train_iteration == 0 {
+            let num_features = record.len() - 1; 
+            self.features = (0..num_features)
+                .map(|_| GaussianFeature::new(self.labels.len()))
+                .collect::<Vec<GaussianFeature>>();
+        }
+        
         // Skip the 1st entry since it was handles above
-        for (idx, result) in rdr.records().skip(1).enumerate() {
+        for (sample_idx, result) in rdr.records().skip(1).enumerate() {
             // Print the training status on the specified interval
-            if idx % PRINT_INTERVAL == 0 {
-                println!("Iteration {}", idx);
+            if sample_idx % PRINT_INTERVAL == 0 {
+                println!("Iteration {}", sample_idx);
             }
 
             let (label_index, sample): (usize, Vec<Num>) = 
                 GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
             let label: &ClassLabel = &self.labels[label_index];
 
-            for value in sample.iter() {
-                // adapted from https://stackoverflow.com/a/37391993
-                add_fn(&mut self.features[idx], label, *value);
+            for (value, feature) in sample.iter().zip(self.features.iter_mut()) {
+                feature.train_iter(label, *value, train_iteration);
             }    
         }
 
@@ -104,7 +104,7 @@ impl GaussianNaiveBayes {
                 GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
 
             // Classify the features in the record
-            let predicted_label: Box<dyn Label> = self.classify::<Num>(&features);
+            let predicted_label: Box<dyn Label> = self.classify::<Num>(&features)?;
             let predicted_index: usize = predicted_label.get_index();
 
             // Indexed by row = actual label, column = predicted label
@@ -191,7 +191,7 @@ impl GaussianNaiveBayes {
                 GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
 
             let predicted_label: Box<dyn Label> = 
-                GaussianNaiveBayes::classify_helper::<Num>(&model, &labels, &features);
+                GaussianNaiveBayes::classify_helper::<Num>(&model, &labels, &features)?;
 
             let predicted_index: usize = predicted_label.get_index();
 
@@ -209,7 +209,7 @@ impl GaussianNaiveBayes {
             (model: &Vec<GaussianFeature>, 
                 labels: &Vec<ClassLabel>,
                 sample_features: &Vec<Num>) 
-            -> Box<dyn Label> {
+            -> Result<Box<dyn Label>, ModelError> {
         let mut max_likelihood: f64 = 0.0;
         let mut best_label: Option<&ClassLabel> = None;
 
@@ -217,16 +217,17 @@ impl GaussianNaiveBayes {
         for current_class in labels.iter() {        
             let feature_likelihoods: f64 = model.iter().enumerate()
                                             .fold(0.0, |total, (idx, feat)| {
-                let prob: f64 = feat.get_feature_likelihood_given_class(
-                    sample_features[idx], current_class);
-
-                // Use log rules and addition to avoid float underflow
-                total + prob.log10()
+                match feat.get_feature_likelihood_given_class(
+                        sample_features[idx], current_class) {
+                    // Use log rules and addition to avoid float underflow
+                    Ok(prob) => total + prob.log10(),
+                    Err(error) => panic!("{:?}", error)
+                }
             });
 
             let class_likelihood: f64 = 
-                model[0].get_class_likelihood(current_class).log10();
-            let likelihood: f64 = feature_likelihoods + class_likelihood;
+                model[0].get_class_likelihood(current_class)?;
+            let likelihood: f64 = feature_likelihoods + class_likelihood.log10();
 
             if best_label.is_none() || likelihood > max_likelihood {
                 max_likelihood = likelihood;
@@ -234,7 +235,7 @@ impl GaussianNaiveBayes {
             }
         }
 
-        Box::new(*best_label.expect("Could not classify record."))
+        Ok(Box::new(*best_label.expect("Could not classify record.")))
     }
 }
 
@@ -295,12 +296,10 @@ impl Model for GaussianNaiveBayes {
     fn train<Num: ToPrimitive + Copy + FromStr>(
             &mut self, file_path: &String) -> Result<(), Box<dyn Error>> {
         println!("Adding distribution means.");
-        self.add_values_from_file::<Num>(
-            &file_path, &mut GaussianFeature::add_value_for_mean)?;
+        self.add_values_from_file::<Num>(&file_path, 0)?;
 
         println!("Adding distribution standard deviations.");
-        self.add_values_from_file::<Num>(
-            &file_path, &mut GaussianFeature::add_value_for_std)?;
+        self.add_values_from_file::<Num>(&file_path, 1)?;
 
         for feature in self.features.iter_mut() {
             feature.configure_std();
@@ -320,7 +319,8 @@ impl Model for GaussianNaiveBayes {
     }
 
     fn classify<Num: ToPrimitive + Copy>
-            (&self, sample_features: &Vec<Num>) -> Box<dyn Label> {
+            (&self, sample_features: &Vec<Num>) 
+            -> Result<Box<dyn Label>, ModelError> {
         GaussianNaiveBayes::classify_helper(
             &self.features, &self.labels, &sample_features)
     }

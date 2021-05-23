@@ -52,7 +52,8 @@ fn run_app() -> Result<(), String> {
 
     if let Some(test_path) = arg_matches.value_of("test") {
         let path: String = String::from(test_path);
-        match model.test::<u8>(&path) {
+
+        match model.test::<u8>(&path, true) {
             Ok(accuracy) => println!("Model accuracy: {}", accuracy),
             Err(_) => return Err(String::from("Model testing failed"))
         };

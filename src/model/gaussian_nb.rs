@@ -27,9 +27,8 @@ pub struct GaussianNaiveBayes {
 }
 
 impl GaussianNaiveBayes {
-    fn parse_csv_record<Num: ToPrimitive + Copy + FromStr>
-            (record: Result<csv::StringRecord, csv::Error>) 
-            -> Result<(usize, Vec<Num>), Box<dyn Error>> {
+    fn parse_csv_record(record: Result<csv::StringRecord, csv::Error>) 
+            -> Result<(usize, Vec<String>), Box<dyn Error>> {
         // iterator yields Result<StringRecord, Error>, so check error here.
         let result = record?;
 
@@ -39,12 +38,8 @@ impl GaussianNaiveBayes {
             .expect("Could not convert String to usize.");
 
         // Skip the 1st element since we already parsed it above
-        let features: Vec<Num> = result.iter().skip(1).map(|x| {
-            match x.parse::<Num>() {
-                Ok(val) => val,
-                Err(_) => panic!("Could not parse record.")
-            }
-        }).collect::<Vec<Num>>();
+        let features: Vec<String> = 
+            result.iter().skip(1).map(|s| s.to_string()).collect::<Vec<String>>();
 
         Ok((label_index, features))
     }
@@ -72,12 +67,12 @@ impl GaussianNaiveBayes {
                 println!("Iteration {}", sample_idx);
             }
 
-            let (label_index, sample): (usize, Vec<Num>) = 
-                GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
+            let (label_index, sample): (usize, Vec<String>) = 
+                GaussianNaiveBayes::parse_csv_record(result)?;
             let label: &ClassLabel = &self.labels[label_index];
 
             for (value, feature) in sample.iter().zip(self.features.iter_mut()) {
-                feature.train_iter(label, *value, train_iteration);
+                feature.train_iter::<Num>(label, value, train_iteration);
             }    
         }
 
@@ -99,8 +94,8 @@ impl GaussianNaiveBayes {
                 println!("Iteration {}", idx);
             }
 
-            let (actual_index, features): (usize, Vec<Num>) = 
-                GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
+            let (actual_index, features): (usize, Vec<String>) = 
+                GaussianNaiveBayes::parse_csv_record(result)?;
 
             // Classify the features in the record
             let predicted_label: Box<dyn Label> = self.classify::<Num>(&features)?;
@@ -143,11 +138,11 @@ impl GaussianNaiveBayes {
                 
                 // Spawn a thread and send the transmitter to pass the results
                 thread::spawn(move || {
-                    if let Err(_) = 
+                    if let Err(e) = 
                         GaussianNaiveBayes::test_helper::<Num>(
                             model_clone, labels_clone, path, tx, 
                             matrix_shape, thread_idx, num_threads) {
-                        println!("Error in Thread {}", thread_idx);
+                        panic!("Error in Thread {}: {:?}", thread_idx, e);
                     }
                 });
 
@@ -186,8 +181,8 @@ impl GaussianNaiveBayes {
                 println!("Thread {}\tIteration {}", thread_index, idx);
             }
 
-            let (actual_index, features): (usize, Vec<Num>) = 
-                GaussianNaiveBayes::parse_csv_record::<Num>(result)?;
+            let (actual_index, features): (usize, Vec<String>) = 
+                GaussianNaiveBayes::parse_csv_record(result)?;
 
             let predicted_label: Box<dyn Label> = 
                 GaussianNaiveBayes::classify_helper::<Num>(&model, &labels, &features)?;
@@ -204,10 +199,10 @@ impl GaussianNaiveBayes {
         Ok(())
     }
 
-    fn classify_helper<Num: ToPrimitive + Copy>
+    fn classify_helper<Num: ToPrimitive + Copy + FromStr>
             (model: &Vec<GaussianFeature>, 
                 labels: &Vec<ClassLabel>,
-                sample_features: &Vec<Num>) 
+                sample_features: &Vec<String>) 
             -> Result<Box<dyn Label>, ModelError> {
         let mut max_likelihood: f64 = 0.0;
         let mut best_label: Option<&ClassLabel> = None;
@@ -216,17 +211,17 @@ impl GaussianNaiveBayes {
         for current_class in labels.iter() {        
             let feature_likelihoods: f64 = model.iter().enumerate()
                                             .fold(0.0, |total, (idx, feat)| {
-                match feat.get_feature_likelihood_given_class(
-                        sample_features[idx], current_class) {
+                match feat.likelihood_given_class::<Num>(
+                        &sample_features[idx], current_class) {
                     // Use log rules and addition to avoid float underflow
                     Ok(prob) => total + prob.log10(),
                     Err(error) => panic!("{:?}", error)
                 }
             });
 
-            let class_likelihood: f64 = 
-                model[0].get_class_likelihood(current_class)?;
-            let likelihood: f64 = feature_likelihoods + class_likelihood.log10();
+            let class_prob: f64 = 
+                model[0].class_likelihood(current_class)?;
+            let likelihood: f64 = feature_likelihoods + class_prob.log10();
 
             if best_label.is_none() || likelihood > max_likelihood {
                 max_likelihood = likelihood;
@@ -262,20 +257,16 @@ impl Model for GaussianNaiveBayes {
     }
 
     fn from_labels(file_path: &String) -> GaussianNaiveBayes {
-        let file = match fs::File::open(file_path) {
-            Ok(f) => f,
-            Err(_) => panic!("Unable to read labels file at {}", file_path)
-        };
+        let msg: String = format!("Unable to read labels file at {}", file_path);
+        let file = fs::File::open(file_path).expect(&msg);
 
         print!("Reading labels...");
 
         let reader: BufReader<fs::File> = BufReader::new(file);
         let labels: Vec<ClassLabel> = reader.lines().map(|line| {
             // split each line by space to get index and ascii values
-            let components: Vec<String> = match line {
-                Ok(s) => s.split(" ").map(|s| s.to_string()).collect(),
-                Err(_) => panic!("Could not parse label.")
-            };
+            let result = line.expect("Could not parse label.");
+            let components: Vec<&str> = result.split(" ").collect();
 
             // Save parsed values in a ClassLabel struct
             ClassLabel::new(
@@ -317,10 +308,10 @@ impl Model for GaussianNaiveBayes {
         }
     }
 
-    fn classify<Num: ToPrimitive + Copy>
-            (&self, sample_features: &Vec<Num>) 
+    fn classify<Num: ToPrimitive + Copy + FromStr>
+            (&self, sample_features: &Vec<String>) 
             -> Result<Box<dyn Label>, ModelError> {
-        GaussianNaiveBayes::classify_helper(
+        GaussianNaiveBayes::classify_helper::<Num>(
             &self.features, &self.labels, &sample_features)
     }
 }

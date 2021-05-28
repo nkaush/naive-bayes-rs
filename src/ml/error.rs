@@ -2,13 +2,15 @@ use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub enum ModelError {
-    UntrainedError
+    UntrainedError,
+    FeatureNotFound
 }
 
 impl ModelError {
     fn value(&self) -> &str {
         match *self {
-            ModelError::UntrainedError => "The model has not been fully trained."
+            ModelError::UntrainedError => "The model has not been fully trained.",
+            ModelError::FeatureNotFound => "The feature was not present in the provided training data."
         }
     }
 }

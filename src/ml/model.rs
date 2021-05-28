@@ -21,7 +21,8 @@ pub trait Model {
         (&self, file_path: &String, multithreaded: bool) 
         -> Result<f64, Box<dyn Error>>;
 
-    fn classify<Num: ToPrimitive + Copy>(&self, sample_features: &Vec<Num>) 
+    fn classify<Num: ToPrimitive + Copy + FromStr>
+        (&self, sample_features: &Vec<String>) 
         -> Result<Box<dyn Label>, ModelError>;
 
     fn calculate_accuracy(confusion_matrix: &Array<usize, Ix2>) -> f64 {

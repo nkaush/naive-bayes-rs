@@ -6,7 +6,7 @@ use crate::ml::{feature::Feature, label::Label, error::ModelError};
 
 use self::serde::{Serialize, Deserialize};
 use self::num_traits::ToPrimitive;
-use std::vec::Vec;
+use std::{str::FromStr, vec::Vec};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GaussianFeature {
@@ -43,6 +43,10 @@ impl GaussianFeature {
         &self.classifications[label.get_index()]
     }
 
+    fn get_class_mut(&mut self, label: &dyn Label) -> &mut GaussianClassification {
+        &mut self.classifications[label.get_index()]
+    }
+
     /* pub(crate) fn add_value_for_mean<Num: ToPrimitive + Copy>
             (&mut self, label: &dyn Label, value: Num) {
         let class: &mut GaussianClassification = 
@@ -68,20 +72,20 @@ impl GaussianFeature {
 }
 
 impl Feature for GaussianFeature {
-    fn train_iter<Num: ToPrimitive + Copy>
-            (&mut self, label: &dyn Label, value: Num, iter: usize) {
+    fn train_iter<Num: ToPrimitive + Copy + FromStr>
+            (&mut self, label: &dyn Label, value: &String, iter: usize) {
+        let converted: Num = match value.parse::<Num>() {
+            Ok(val) => val,
+            Err(_) => panic!("Could not parse record.")
+        };
+        
         match iter {
             0 => {
-                let class: &mut GaussianClassification = 
-                    &mut self.classifications[label.get_index()];
-                
-                class.add_value_for_mean(value);
+                self.get_class_mut(label).add_value_for_mean(converted);
                 self.sample_size += 1;
             },
             1 => {
-                let class: &mut GaussianClassification = 
-                    &mut self.classifications[label.get_index()];
-                class.add_value_for_std(value);
+                self.get_class_mut(label).add_value_for_std(converted);
             },
             _ => {}
         }
@@ -99,17 +103,22 @@ impl Feature for GaussianFeature {
         self.is_trained
     }
 
-    fn get_feature_likelihood_given_class<Num: ToPrimitive + Copy>
-            (&self, sample_feature: Num, label: &dyn Label) 
+    fn likelihood_given_class<Num: ToPrimitive + Copy + FromStr>
+            (&self, sample_feature: &String, label: &dyn Label) 
             -> Result<f64, ModelError> {
         if !self.is_trained() {
             return Err(ModelError::UntrainedError);
         }
+
+        let converted: Num = match sample_feature.parse::<Num>() {
+            Ok(val) => val,
+            Err(_) => panic!("Could not parse record.")
+        };
         
-        Ok(self.get_class(label).pdf(sample_feature))
+        Ok(self.get_class(label).pdf(converted))
     }
 
-    fn get_class_likelihood(&self, label: &dyn Label) -> Result<f64, ModelError> {
+    fn class_likelihood(&self, label: &dyn Label) -> Result<f64, ModelError> {
         if !self.is_trained() {
             return Err(ModelError::UntrainedError);
         }

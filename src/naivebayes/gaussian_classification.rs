@@ -8,7 +8,7 @@ use std::vec::Vec;
 
 static MIN_STD: f64 = 1e-10;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct GaussianClassification {
     mean: f64,
     std: f64,
@@ -51,6 +51,21 @@ fn std<Num: ToPrimitive + Copy>(features: &Vec<Num>) -> f64 {
 }
 
 impl GaussianClassification {
+    pub(crate) fn merge(a: &GaussianClassification, b: &GaussianClassification)
+            -> GaussianClassification {
+        
+        let a_sum: f64 = a.sample_size as f64 * a.mean;
+        let b_sum: f64 = b.sample_size as f64 * b.mean;
+        let new_mean: f64 = (a_sum + b_sum) / (a.sample_size + b.sample_size) as f64;
+                                
+        GaussianClassification {
+            mean: new_mean,
+            std: 0.0,
+            sample_size: a.sample_size + b.sample_size,
+            square_mean_diffs: a.square_mean_diffs + b.square_mean_diffs
+        }
+    }
+
     pub(crate) fn new() -> GaussianClassification {
         GaussianClassification {
             mean: 0.0,
@@ -76,19 +91,21 @@ impl GaussianClassification {
 
     pub(crate) fn add_value_for_mean<Num: ToPrimitive + Copy>(&mut self, value: Num) {
         match value.to_f64() {
-            None => (),
+            None => {
+                println!("Could not parse feature");
+            },
             Some(n) => {
                 self.sample_size += 1;
                 self.mean = self.mean + ((n - self.mean) / (self.sample_size) as f64);
             }
         };
-
-        self.sample_size += 1;
     }
 
     pub(crate) fn add_value_for_std<Num: ToPrimitive + Copy>(&mut self, value: Num) {
         match value.to_f64() {
-            None => (),
+            None => {
+                println!("Could not parse feature");
+            },
             Some(n) => {
                 self.square_mean_diffs += (n - self.mean).powf(2.0);
             }

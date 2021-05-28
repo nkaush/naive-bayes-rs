@@ -1,2 +1,2 @@
 cargo build
-cp ./target/debug/mnist-classifier ./mnist-classifier
+mv ./target/debug/mnist-classifier ./mnist-classifier
